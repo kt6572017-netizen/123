@@ -1,0 +1,882 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MBA 2nd Year 3rd Sem - Attendance Dashboard</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+            background-color: #0A0E1A;
+            color: #F8FAFC;
+        }
+        .dark-card {
+            background: #131B2E;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 18px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+        }
+        .mini-card {
+            background: #0E1626;
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            border-radius: 14px;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .mini-card:hover {
+            transform: translateY(-2px);
+            border-color: rgba(99, 102, 241, 0.4);
+        }
+        .nav-btn {
+            transition: all 0.2s;
+        }
+        .nav-btn.active {
+            background: linear-gradient(135deg, #4F46E5 0%, #7C3AED 100%) !important;
+            color: #FFFFFF !important;
+            font-weight: 700;
+            box-shadow: 0 4px 18px rgba(99, 102, 241, 0.45);
+        }
+        /* Custom scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #0A0E1A;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #1E293B;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col md:flex-row antialiased">
+
+    <!-- SIDEBAR -->
+    <aside class="w-full md:w-64 bg-[#0F172A] border-r border-white/10 p-5 flex flex-col justify-between shrink-0">
+        <div>
+            <!-- Brand -->
+            <div class="flex items-center gap-3 pb-6 mb-6 border-b border-white/10">
+                <span class="text-3xl">🎓</span>
+                <div>
+                    <h1 class="font-extrabold text-white text-base leading-tight">MBA 2nd Year</h1>
+                    <span class="text-xs font-semibold text-indigo-400">3rd Semester</span>
+                </div>
+            </div>
+
+            <!-- Navigation Links -->
+            <nav class="space-y-1.5" id="nav-links">
+                <button onclick="switchTab('dashboard')" class="nav-btn active w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold text-slate-300 hover:bg-white/5 hover:text-white" data-tab="dashboard">
+                    <span>📊</span> Dashboard
+                </button>
+                <button onclick="switchTab('defaulters')" class="nav-btn w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold text-slate-300 hover:bg-white/5 hover:text-white" data-tab="defaulters">
+                    <span>📑</span> Defaulters List
+                </button>
+                <button onclick="switchTab('calculator')" class="nav-btn w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold text-slate-300 hover:bg-white/5 hover:text-white" data-tab="calculator">
+                    <span>🧮</span> Attendance Calculator
+                </button>
+                <button onclick="switchTab('student')" class="nav-btn w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold text-slate-300 hover:bg-white/5 hover:text-white" data-tab="student">
+                    <span>👤</span> Student Report Card
+                </button>
+                <button onclick="switchTab('rankings')" class="nav-btn w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold text-slate-300 hover:bg-white/5 hover:text-white" data-tab="rankings">
+                    <span>📚</span> Subject Rankings
+                </button>
+                <button onclick="switchTab('records')" class="nav-btn w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold text-slate-300 hover:bg-white/5 hover:text-white" data-tab="records">
+                    <span>📋</span> Master Records
+                </button>
+            </nav>
+
+            <!-- Filters -->
+            <div class="mt-8 pt-6 border-t border-white/10 space-y-4">
+                <div class="text-[11px] font-bold tracking-wider text-slate-400 uppercase">Quick Filter</div>
+                <div>
+                    <label class="text-xs text-slate-400 mb-1 block">Course</label>
+                    <select id="courseFilter" onchange="applyGlobalFilter()" class="w-full bg-[#131B2E] border border-white/10 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-indigo-500">
+                        <option value="ALL">All Courses</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="text-xs text-slate-400 mb-1 block">Status</label>
+                    <select id="statusFilter" onchange="applyGlobalFilter()" class="w-full bg-[#131B2E] border border-white/10 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-indigo-500">
+                        <option value="ALL">All Statuses</option>
+                        <option value="Eligible">Eligible (≥75%)</option>
+                        <option value="Shortage">Shortage (&lt;75%)</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+
+        <div class="pt-6 border-t border-white/10 text-xs text-slate-400 flex flex-col gap-2">
+            <div class="flex items-center gap-2 cursor-pointer hover:text-white"><span>⚙️</span> System Settings</div>
+            <div class="flex items-center gap-2 cursor-pointer hover:text-white"><span>❓</span> Help & Documentation</div>
+        </div>
+    </aside>
+
+    <!-- MAIN CONTENT -->
+    <main class="flex-1 p-6 md:p-8 overflow-y-auto max-w-7xl mx-auto w-full">
+        <!-- Top Navigation Header -->
+        <header class="bg-[#0F172A]/80 backdrop-blur-md border border-white/10 rounded-2xl px-6 py-4 mb-8 flex justify-between items-center">
+            <div class="flex items-center gap-3">
+                <span class="text-2xl">📊</span>
+                <div>
+                    <h2 id="pageTitle" class="text-xl md:text-2xl font-extrabold bg-gradient-to-r from-blue-400 via-purple-400 to-pink-400 bg-clip-text text-transparent">
+                        MBA 2nd Year 3rd Sem - Dashboard
+                    </h2>
+                </div>
+                <span class="hidden md:inline-block bg-indigo-500/20 border border-indigo-500/40 text-indigo-300 text-xs font-bold px-3 py-0.5 rounded-full">
+                    Fall 2026
+                </span>
+            </div>
+            <div class="flex items-center gap-3">
+                <div class="w-9 h-9 rounded-full bg-slate-800 border border-white/10 flex items-center justify-center text-slate-400 text-sm cursor-pointer hover:bg-slate-700">🔍</div>
+                <div class="w-9 h-9 rounded-full bg-slate-800 border border-white/10 flex items-center justify-center text-slate-400 text-sm cursor-pointer relative hover:bg-slate-700">
+                    🔔
+                    <span class="w-2 h-2 rounded-full bg-rose-500 absolute top-2 right-2 animate-pulse"></span>
+                </div>
+                <img src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&auto=format&fit=crop&q=80" alt="Avatar" class="w-9 h-9 rounded-full border-2 border-indigo-500 shadow-lg shadow-indigo-500/30">
+            </div>
+        </header>
+
+        <!-- VIEW 1: DASHBOARD -->
+        <section id="tab-dashboard" class="space-y-6">
+            <!-- Row 1: Donut + 6 Metric Cards -->
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                <!-- Donut Chart -->
+                <div class="lg:col-span-4 dark-card p-6 flex flex-col justify-between">
+                    <div class="flex justify-between items-center mb-2">
+                        <h3 class="font-bold text-slate-200 text-sm uppercase tracking-wide">Attendance Statistics</h3>
+                        <span class="text-slate-500 text-xs">•••</span>
+                    </div>
+                    <div class="relative h-48 flex items-center justify-center">
+                        <canvas id="donutChart"></canvas>
+                        <div class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                            <span class="text-[11px] font-semibold text-slate-400 uppercase tracking-widest">Total Students</span>
+                            <span class="text-3xl font-extrabold text-white" id="donutTotalStudents">29</span>
+                        </div>
+                    </div>
+                    <div class="flex justify-center mt-3">
+                        <span class="bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 font-bold text-xs px-3 py-1 rounded-full">
+                            ✨ 54% Eligible Registrations
+                        </span>
+                    </div>
+                </div>
+
+                <!-- 6 Metric Cards -->
+                <div class="lg:col-span-8 dark-card p-6">
+                    <div class="flex justify-between items-center mb-4">
+                        <h3 class="font-bold text-slate-200 text-sm uppercase tracking-wide">Semester Attendance Metrics</h3>
+                        <span class="text-slate-500 text-xs">•••</span>
+                    </div>
+                    <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3">
+                        <div class="mini-card p-4 flex flex-col items-center text-center">
+                            <div class="w-10 h-10 rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 flex items-center justify-center text-lg mb-2 font-bold">✓</div>
+                            <span class="text-[11px] font-semibold text-slate-400 uppercase">Eligible</span>
+                            <span class="text-2xl font-extrabold text-emerald-400 mt-1" id="mEligible">94</span>
+                        </div>
+                        <div class="mini-card p-4 flex flex-col items-center text-center">
+                            <div class="w-10 h-10 rounded-xl bg-rose-500/15 border border-rose-500/30 text-rose-400 flex items-center justify-center text-lg mb-2 font-bold">⚠️</div>
+                            <span class="text-[11px] font-semibold text-slate-400 uppercase">Shortage</span>
+                            <span class="text-2xl font-extrabold text-rose-400 mt-1" id="mShortage">80</span>
+                        </div>
+                        <div class="mini-card p-4 flex flex-col items-center text-center">
+                            <div class="w-10 h-10 rounded-xl bg-amber-500/15 border border-amber-500/30 text-amber-400 flex items-center justify-center text-lg mb-2 font-bold">☂️</div>
+                            <span class="text-[11px] font-semibold text-slate-400 uppercase">Defaulters</span>
+                            <span class="text-2xl font-extrabold text-amber-400 mt-1" id="mDefaulters">20</span>
+                        </div>
+                        <div class="mini-card p-4 flex flex-col items-center text-center">
+                            <div class="w-10 h-10 rounded-xl bg-cyan-500/15 border border-cyan-500/30 text-cyan-400 flex items-center justify-center text-lg mb-2 font-bold">👨‍🎓</div>
+                            <span class="text-[11px] font-semibold text-slate-400 uppercase">Students</span>
+                            <span class="text-2xl font-extrabold text-cyan-400 mt-1" id="mStudents">29</span>
+                        </div>
+                        <div class="mini-card p-4 flex flex-col items-center text-center">
+                            <div class="w-10 h-10 rounded-xl bg-purple-500/15 border border-purple-500/30 text-purple-400 flex items-center justify-center text-lg mb-2 font-bold">📚</div>
+                            <span class="text-[11px] font-semibold text-slate-400 uppercase">Courses</span>
+                            <span class="text-2xl font-extrabold text-purple-400 mt-1" id="mCourses">12</span>
+                        </div>
+                        <div class="mini-card p-4 flex flex-col items-center text-center">
+                            <div class="w-10 h-10 rounded-xl bg-blue-500/15 border border-blue-500/30 text-blue-400 flex items-center justify-center text-lg mb-2 font-bold">📈</div>
+                            <span class="text-[11px] font-semibold text-slate-400 uppercase">Class Avg</span>
+                            <span class="text-2xl font-extrabold text-blue-400 mt-1" id="mClassAvg">70.2%</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Row 2: Charts + Distribution Grid -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <!-- Variance Chart -->
+                <div class="dark-card p-6">
+                    <div class="flex justify-between items-center mb-4">
+                        <h3 class="font-bold text-slate-200 text-sm">Attendance Variance vs 75% Target</h3>
+                        <span class="text-xs text-indigo-400 font-semibold">Threshold</span>
+                    </div>
+                    <div class="h-52">
+                        <canvas id="varianceChart"></canvas>
+                    </div>
+                </div>
+
+                <!-- Subject Benchmarks Chart -->
+                <div class="dark-card p-6">
+                    <div class="flex justify-between items-center mb-4">
+                        <h3 class="font-bold text-slate-200 text-sm">Subject Performance Benchmarks</h3>
+                        <span class="bg-indigo-600/40 text-indigo-300 text-[10px] font-extrabold px-2 py-0.5 rounded">AVERAGE %</span>
+                    </div>
+                    <div class="h-52">
+                        <canvas id="benchmarksChart"></canvas>
+                    </div>
+                </div>
+
+                <!-- Attendance Source 2x2 Grid -->
+                <div class="dark-card p-6 flex flex-col justify-between">
+                    <div class="flex justify-between items-center mb-4">
+                        <h3 class="font-bold text-slate-200 text-sm">Attendance Distribution</h3>
+                        <span class="text-slate-500 text-xs">•••</span>
+                    </div>
+                    <div class="grid grid-cols-2 gap-3">
+                        <div class="mini-card p-4">
+                            <div class="text-[11px] font-bold text-slate-400 uppercase">Core Courses</div>
+                            <div class="text-2xl font-extrabold text-blue-400 mt-1">87</div>
+                        </div>
+                        <div class="mini-card p-4">
+                            <div class="text-[11px] font-bold text-slate-400 uppercase">Electives</div>
+                            <div class="text-2xl font-extrabold text-purple-400 mt-1">87</div>
+                        </div>
+                        <div class="mini-card p-4">
+                            <div class="text-[11px] font-bold text-slate-400 uppercase">100% Eligible</div>
+                            <div class="text-2xl font-extrabold text-emerald-400 mt-1">9</div>
+                        </div>
+                        <div class="mini-card p-4">
+                            <div class="text-[11px] font-bold text-slate-400 uppercase">Total Subjects</div>
+                            <div class="text-2xl font-extrabold text-amber-400 mt-1">12</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Row 3: Exceptions & Actions -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div class="dark-card p-6">
+                    <h3 class="font-bold text-slate-200 text-sm mb-4">Attendance Exceptions</h3>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div class="mini-card p-4">
+                            <div class="text-xs font-semibold text-slate-400">Severe Shortage (&lt;50%)</div>
+                            <div class="text-2xl font-extrabold text-rose-400 mt-1">18 cases</div>
+                        </div>
+                        <div class="mini-card p-4">
+                            <div class="text-xs font-semibold text-slate-400">Borderline (50-74%)</div>
+                            <div class="text-2xl font-extrabold text-amber-400 mt-1">62 cases</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="dark-card p-6">
+                    <h3 class="font-bold text-slate-200 text-sm mb-4">Pending Actions & Undertakings</h3>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div class="mini-card p-4">
+                            <div class="text-xs font-semibold text-slate-400">Defaulter Interventions</div>
+                            <div class="text-2xl font-extrabold text-rose-400 mt-1">20 students</div>
+                        </div>
+                        <div class="mini-card p-4">
+                            <div class="text-xs font-semibold text-slate-400">Clear Without Undertaking</div>
+                            <div class="text-2xl font-extrabold text-emerald-400 mt-1">9 students</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- VIEW 2: DEFAULTERS LIST -->
+        <section id="tab-defaulters" class="hidden space-y-6">
+            <div class="dark-card p-6">
+                <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+                    <div>
+                        <h3 class="font-bold text-lg text-white">⚠️ Defaulters Directory (Attendance &lt; 75%)</h3>
+                        <p class="text-xs text-slate-400">Students with attendance shortage requiring undertaking submissions</p>
+                    </div>
+                    <span class="bg-rose-500/20 border border-rose-500/40 text-rose-400 text-xs font-bold px-3 py-1 rounded-full">
+                        20 Defaulters Found
+                    </span>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left text-sm">
+                        <thead class="bg-[#0E1626] text-slate-400 text-xs uppercase border-b border-white/10">
+                            <tr>
+                                <th class="p-3">Rank</th>
+                                <th class="p-3">Register No</th>
+                                <th class="p-3">Student Name</th>
+                                <th class="p-3">Shortage Count</th>
+                                <th class="p-3">Shortage Courses</th>
+                                <th class="p-3">Avg Attendance</th>
+                            </tr>
+                        </thead>
+                        <tbody id="defaultersTableBody" class="divide-y divide-white/5"></tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- VIEW 3: ATTENDANCE CALCULATOR -->
+        <section id="tab-calculator" class="hidden space-y-6">
+            <div class="dark-card p-6">
+                <div class="flex justify-between items-center mb-6">
+                    <div>
+                        <h3 class="font-bold text-lg text-white">🧮 75% Attendance Eligibility Calculator</h3>
+                        <p class="text-xs text-slate-400">Calculate exact upcoming consecutive classes to attend to reach 75% eligibility</p>
+                    </div>
+                    <span class="text-indigo-400 font-semibold text-xs">Recovery Solver</span>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                    <div>
+                        <label class="text-xs font-bold text-slate-300 block mb-1">Select Student</label>
+                        <select id="calcStudentSelect" onchange="onCalcStudentChange()" class="w-full bg-[#0E1626] border border-white/15 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-indigo-500"></select>
+                    </div>
+                    <div>
+                        <label class="text-xs font-bold text-slate-300 block mb-1">Select Registered Subject</label>
+                        <select id="calcSubjectSelect" onchange="runCalculator()" class="w-full bg-[#0E1626] border border-white/15 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-indigo-500"></select>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
+                    <div class="mini-card p-4">
+                        <span class="text-xs text-slate-400">Classes Held</span>
+                        <div class="text-xl font-bold text-white mt-1" id="calcHeld">16</div>
+                    </div>
+                    <div class="mini-card p-4">
+                        <span class="text-xs text-slate-400">Classes Attended</span>
+                        <div class="text-xl font-bold text-white mt-1" id="calcAttended">7</div>
+                    </div>
+                    <div class="mini-card p-4">
+                        <span class="text-xs text-slate-400">Current %</span>
+                        <div class="text-xl font-bold text-white mt-1" id="calcPct">43.75%</div>
+                    </div>
+                    <div class="mini-card p-4">
+                        <span class="text-xs text-slate-400">Status</span>
+                        <div class="text-xl font-bold mt-1" id="calcStatus">Shortage</div>
+                    </div>
+                </div>
+
+                <!-- Calculator Result Callout -->
+                <div id="calcAlertBox" class="p-5 rounded-2xl mb-6"></div>
+
+                <!-- Recovery Simulation Table -->
+                <div class="mt-6">
+                    <h4 class="font-bold text-sm text-slate-200 mb-3">📈 Class-by-Class Attendance Recovery Projection</h4>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left text-sm">
+                            <thead class="bg-[#0E1626] text-slate-400 text-xs uppercase border-b border-white/10">
+                                <tr>
+                                    <th class="p-3">Upcoming Classes Attended</th>
+                                    <th class="p-3">New Ratio (Attended / Held)</th>
+                                    <th class="p-3">Projected Attendance (%)</th>
+                                    <th class="p-3">Status</th>
+                                </tr>
+                            </thead>
+                            <tbody id="calcSimTableBody" class="divide-y divide-white/5"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- VIEW 4: STUDENT REPORT CARD -->
+        <section id="tab-student" class="hidden space-y-6">
+            <div class="dark-card p-6">
+                <div class="flex justify-between items-center mb-6">
+                    <h3 class="font-bold text-lg text-white">👤 Individual Student Attendance Card</h3>
+                    <div class="w-72">
+                        <select id="reportStudentSelect" onchange="renderStudentReport()" class="w-full bg-[#0E1626] border border-white/15 rounded-xl px-4 py-2 text-sm text-white focus:outline-none focus:border-indigo-500"></select>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+                    <div class="mini-card p-4">
+                        <span class="text-xs text-slate-400">Overall Average</span>
+                        <div class="text-2xl font-extrabold text-blue-400 mt-1" id="reportAvg">0%</div>
+                    </div>
+                    <div class="mini-card p-4">
+                        <span class="text-xs text-slate-400">Registered Courses</span>
+                        <div class="text-2xl font-extrabold text-purple-400 mt-1">6 Subjects</div>
+                    </div>
+                    <div class="mini-card p-4">
+                        <span class="text-xs text-slate-400">Shortage Count</span>
+                        <div class="text-2xl font-extrabold mt-1" id="reportShortages">0</div>
+                    </div>
+                </div>
+
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left text-sm">
+                        <thead class="bg-[#0E1626] text-slate-400 text-xs uppercase border-b border-white/10">
+                            <tr>
+                                <th class="p-3">Course Code</th>
+                                <th class="p-3">Course Title</th>
+                                <th class="p-3">Attended / Held</th>
+                                <th class="p-3">Percentage</th>
+                                <th class="p-3">Status</th>
+                            </tr>
+                        </thead>
+                        <tbody id="reportTableBody" class="divide-y divide-white/5"></tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- VIEW 5: SUBJECT RANKINGS -->
+        <section id="tab-rankings" class="hidden space-y-6">
+            <div class="dark-card p-6">
+                <h3 class="font-bold text-lg text-white mb-6">📚 Subject-Wise Attendance Benchmarks (Ranked)</h3>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left text-sm">
+                        <thead class="bg-[#0E1626] text-slate-400 text-xs uppercase border-b border-white/10">
+                            <tr>
+                                <th class="p-3">Rank</th>
+                                <th class="p-3">Course Code</th>
+                                <th class="p-3">Course Title</th>
+                                <th class="p-3">Enrollments</th>
+                                <th class="p-3">Average %</th>
+                                <th class="p-3">Defaulters Count</th>
+                            </tr>
+                        </thead>
+                        <tbody id="rankingsTableBody" class="divide-y divide-white/5"></tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- VIEW 6: MASTER RECORDS -->
+        <section id="tab-records" class="hidden space-y-6">
+            <div class="dark-card p-6">
+                <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+                    <div>
+                        <h3 class="font-bold text-lg text-white">📋 Master Attendance Records</h3>
+                        <p class="text-xs text-slate-400" id="recordsCountLabel">Showing 174 records</p>
+                    </div>
+                    <div class="flex items-center gap-3">
+                        <input type="text" id="searchInput" oninput="applyGlobalFilter()" placeholder="Search name or reg no..." class="bg-[#0E1626] border border-white/15 rounded-xl px-4 py-2 text-xs text-white focus:outline-none focus:border-indigo-500 w-56">
+                        <button onclick="downloadCSV()" class="bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs px-4 py-2 rounded-xl transition">
+                            📥 Export CSV
+                        </button>
+                    </div>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left text-sm">
+                        <thead class="bg-[#0E1626] text-slate-400 text-xs uppercase border-b border-white/10">
+                            <tr>
+                                <th class="p-3">S.No</th>
+                                <th class="p-3">Register No</th>
+                                <th class="p-3">Student Name</th>
+                                <th class="p-3">Course Code</th>
+                                <th class="p-3">Course Title</th>
+                                <th class="p-3">Attended</th>
+                                <th class="p-3">%</th>
+                                <th class="p-3">Status</th>
+                            </tr>
+                        </thead>
+                        <tbody id="masterTableBody" class="divide-y divide-white/5"></tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- DATA & LOGIC SCRIPT -->
+    <script>
+        const rawData = [{"S.No": 1, "Register_No": "RA2452001030066", "Student_Name": "AAKASH BAJPAI", "Course_Code": "MBG24301T", "Course_Title": "STRATEGIC MANAGEMENT", "Attendance_Percentage": 43.75, "Status": "Shortage", "Total_Classes": 16, "Attended_Classes": 7}, {"S.No": 2, "Register_No": "RA2452001030066", "Student_Name": "AAKASH BAJPAI", "Course_Code": "MBG24302T", "Course_Title": "ARTIFICIAL INTELLIGENCE FOR BUSINESS", "Attendance_Percentage": 25.0, "Status": "Shortage", "Total_Classes": 16, "Attended_Classes": 4}, {"S.No": 3, "Register_No": "RA2452001030066", "Student_Name": "AAKASH BAJPAI", "Course_Code": "MBG24303L", "Course_Title": "MAIN PROJECT", "Attendance_Percentage": 33.33, "Status": "Shortage", "Total_Classes": 24, "Attended_Classes": 8}, {"S.No": 4, "Register_No": "RA2452001030066", "Student_Name": "AAKASH BAJPAI", "Course_Code": "MBG24B05L", "Course_Title": "MARKETING ANALYTICS", "Attendance_Percentage": 23.53, "Status": "Shortage", "Total_Classes": 17, "Attended_Classes": 4}, {"S.No": 5, "Register_No": "RA2452001030066", "Student_Name": "AAKASH BAJPAI", "Course_Code": "MBG24B11L", "Course_Title": "INTRODUCTION TO MACHINE LEARNING", "Attendance_Percentage": 5.88, "Status": "Shortage", "Total_Classes": 17, "Attended_Classes": 1}, {"S.No": 6, "Register_No": "RA2452001030066", "Student_Name": "AAKASH BAJPAI", "Course_Code": "MBG24M07T", "Course_Title": "INTEGRATED MARKETING COMMUNICATIONS", "Attendance_Percentage": 23.53, "Status": "Shortage", "Total_Classes": 17, "Attended_Classes": 4}, {"S.No": 7, "Register_No": "RA2552001030001", "Student_Name": "AMAN ANSH", "Course_Code": "MBG24302T", "Course_Title": "ARTIFICIAL INTELLIGENCE FOR BUSINESS", "Attendance_Percentage": 87.5, "Status": "Eligible", "Total_Classes": 16, "Attended_Classes": 14}, {"S.No": 8, "Register_No": "RA2552001030001", "Student_Name": "AMAN ANSH", "Course_Code": "MBG24F09T", "Course_Title": "FINANCIAL ANALYTICS", "Attendance_Percentage": 88.24, "Status": "Eligible", "Total_Classes": 17, "Attended_Classes": 15}, {"S.No": 9, "Register_No": "RA2552001030001", "Student_Name": "AMAN ANSH", "Course_Code": "MBG24B11L", "Course_Title": "INTRODUCTION TO MACHINE LEARNING", "Attendance_Percentage": 88.24, "Status": "Eligible", "Total_Classes": 17, "Attended_Classes": 15}, {"S.No": 10, "Register_No": "RA2552001030001", "Student_Name": "AMAN ANSH", "Course_Code": "MBG24B06L", "Course_Title": "FINANCIAL ANALYTICS", "Attendance_Percentage": 88.24, "Status": "Eligible", "Total_Classes": 17, "Attended_Classes": 15}, {"S.No": 11, "Register_No": "RA2552001030001", "Student_Name": "AMAN ANSH", "Course_Code": "MBG24303L", "Course_Title": "MAIN PROJECT", "Attendance_Percentage": 100.0, "Status": "Eligible", "Total_Classes": 24, "Attended_Classes": 24}, {"S.No": 12, "Register_No": "RA2552001030001", "Student_Name": "AMAN ANSH", "Course_Code": "MBG24301T", "Course_Title": "STRATEGIC MANAGEMENT", "Attendance_Percentage": 87.5, "Status": "Eligible", "Total_Classes": 16, "Attended_Classes": 14}, {"S.No": 13, "Register_No": "RA2552001030002", "Student_Name": "ARPIT RANJAN", "Course_Code": "MBG24302T", "Course_Title": "ARTIFICIAL INTELLIGENCE FOR BUSINESS", "Attendance_Percentage": 81.25, "Status": "Eligible", "Total_Classes": 16, "Attended_Classes": 13}, {"S.No": 14, "Register_No": "RA2552001030002", "Student_Name": "ARPIT RANJAN", "Course_Code": "MBG24F09T", "Course_Title": "FINANCIAL ANALYTICS", "Attendance_Percentage": 88.24, "Status": "Eligible", "Total_Classes": 17, "Attended_Classes": 15}, {"S.No": 15, "Register_No": "RA2552001030002", "Student_Name": "ARPIT RANJAN", "Course_Code": "MBG24B11L", "Course_Title": "INTRODUCTION TO MACHINE LEARNING", "Attendance_Percentage": 88.24, "Status": "Eligible", "Total_Classes": 17, "Attended_Classes": 15}, {"S.No": 16, "Register_No": "RA2552001030002", "Student_Name": "ARPIT RANJAN", "Course_Code": "MBG24B06L", "Course_Title": "FINANCIAL ANALYTICS", "Attendance_Percentage": 88.24, "Status": "Eligible", "Total_Classes": 17, "Attended_Classes": 15}, {"S.No": 17, "Register_No": "RA2552001030002", "Student_Name": "ARPIT RANJAN", "Course_Code": "MBG24303L", "Course_Title": "MAIN PROJECT", "Attendance_Percentage": 100.0, "Status": "Eligible", "Total_Classes": 24, "Attended_Classes": 24}, {"S.No": 18, "Register_No": "RA2552001030002", "Student_Name": "ARPIT RANJAN", "Course_Code": "MBG24301T", "Course_Title": "STRATEGIC MANAGEMENT", "Attendance_Percentage": 81.25, "Status": "Eligible", "Total_Classes": 16, "Attended_Classes": 13}, {"S.No": 19, "Register_No": "RA2552001030003", "Student_Name": "JATIN TYAGI", "Course_Code": "MBG24301T", "Course_Title": "STRATEGIC MANAGEMENT", "Attendance_Percentage": 75.0, "Status": "Eligible", "Total_Classes": 16, "Attended_Classes": 12}, {"S.No": 20, "Register_No": "RA2552001030003", "Student_Name": "JATIN TYAGI", "Course_Code": "MBG24302T", "Course_Title": "ARTIFICIAL INTELLIGENCE FOR BUSINESS", "Attendance_Percentage": 81.25, "Status": "Eligible", "Total_Classes": 16, "Attended_Classes": 13}, {"S.No": 21, "Register_No": "RA2552001030003", "Student_Name": "JATIN TYAGI", "Course_Code": "MBG24303L", "Course_Title": "MAIN PROJECT", "Attendance_Percentage": 91.67, "Status": "Eligible", "Total_Classes": 24, "Attended_Classes": 22}, {"S.No": 22, "Register_No": "RA2552001030003", "Student_Name": "JATIN TYAGI", "Course_Code": "MBG24B11L", "Course_Title": "INTRODUCTION TO MACHINE LEARNING", "Attendance_Percentage": 76.47, "Status": "Eligible", "Total_Classes": 17, "Attended_Classes": 13}, {"S.No": 23, "Register_No": "RA2552001030003", "Student_Name": "JATIN TYAGI", "Course_Code": "MBG24F05T", "Course_Title": "FINTECH", "Attendance_Percentage": 82.35, "Status": "Eligible", "Total_Classes": 17, "Attended_Classes": 14}, {"S.No": 24, "Register_No": "RA2552001030003", "Student_Name": "JATIN TYAGI", "Course_Code": "MBG24F09T", "Course_Title": "FINANCIAL ANALYTICS", "Attendance_Percentage": 76.47, "Status": "Eligible", "Total_Classes": 17, "Attended_Classes": 13}, {"S.No": 25, "Register_No": "RA2552001030004", "Student_Name": "NOREEN FATIMA", "Course_Code": "MBG24301T", "Course_Title": "STRATEGIC MANAGEMENT", "Attendance_Percentage": 75.0, "Status": "Eligible", "Total_Classes": 16, "Attended_Classes": 12}, {"S.No": 26, "Register_No": "RA2552001030004", "Student_Name": "NOREEN FATIMA", "Course_Code": "MBG24302T", "Course_Title": "ARTIFICIAL INTELLIGENCE FOR BUSINESS", "Attendance_Percentage": 68.75, "Status": "Shortage", "Total_Classes": 16, "Attended_Classes": 11}, {"S.No": 27, "Register_No": "RA2552001030004", "Student_Name": "NOREEN FATIMA", "Course_Code": "MBG24303L", "Course_Title": "MAIN PROJECT", "Attendance_Percentage": 95.83, "Status": "Eligible", "Total_Classes": 24, "Attended_Classes": 23}, {"S.No": 28, "Register_No": "RA2552001030004", "Student_Name": "NOREEN FATIMA", "Course_Code": "MBG24B11L", "Course_Title": "INTRODUCTION TO MACHINE LEARNING", "Attendance_Percentage": 76.47, "Status": "Eligible", "Total_Classes": 17, "Attended_Classes": 13}, {"S.No": 29, "Register_No": "RA2552001030004", "Student_Name": "NOREEN FATIMA", "Course_Code": "MBG24F05T", "Course_Title": "FINTECH", "Attendance_Percentage": 76.47, "Status": "Eligible", "Total_Classes": 17, "Attended_Classes": 13}, {"S.No": 30, "Register_No": "RA2552001030004", "Student_Name": "NOREEN FATIMA", "Course_Code": "MBG24F09T", "Course_Title": "FINANCIAL ANALYTICS", "Attendance_Percentage": 76.47, "Status": "Eligible", "Total_Classes": 17, "Attended_Classes": 13}, {"S.No": 31, "Register_No": "RA2552001030005", "Student_Name": "RIYA", "Course_Code": "MBG24301T", "Course_Title": "STRATEGIC MANAGEMENT", "Attendance_Percentage": 75.0, "Status": "Eligible", "Total_Classes": 16, "Attended_Classes": 12}, {"S.No": 32, "Register_No": "RA2552001030005", "Student_Name": "RIYA", "Course_Code": "MBG24302T", "Course_Title": "ARTIFICIAL INTELLIGENCE FOR BUSINESS", "Attendance_Percentage": 81.25, "Status": "Eligible", "Total_Classes": 16, "Attended_Classes": 13}, {"S.No": 33, "Register_No": "RA2552001030005", "Student_Name": "RIYA", "Course_Code": "MBG24303L", "Course_Title": "MAIN PROJECT", "Attendance_Percentage": 87.5, "Status": "Eligible", "Total_Classes": 24, "Attended_Classes": 21}, {"S.No": 34, "Register_No": "RA2552001030005", "Student_Name": "RIYA", "Course_Code": "MBG24B05L", "Course_Title": "MARKETING ANALYTICS", "Attendance_Percentage": 82.35, "Status": "Eligible", "Total_Classes": 17, "Attended_Classes": 14}, {"S.No": 35, "Register_No": "RA2552001030005", "Student_Name": "RIYA", "Course_Code": "MBG24B11L", "Course_Title": "INTRODUCTION TO MACHINE LEARNING", "Attendance_Percentage": 82.35, "Status": "Eligible", "Total_Classes": 17, "Attended_Classes": 14}, {"S.No": 36, "Register_No": "RA2552001030005", "Student_Name": "RIYA", "Course_Code": "MBG24F05T", "Course_Title": "FINTECH", "Attendance_Percentage": 82.35, "Status": "Eligible", "Total_Classes": 17, "Attended_Classes": 14}, {"S.No": 37, "Register_No": "RA2552001030006", "Student_Name": "PAYAL KUMARI", "Course_Code": "MBG24301T", "Course_Title": "STRATEGIC MANAGEMENT", "Attendance_Percentage": 81.25, "Status": "Eligible", "Total_Classes": 16, "Attended_Classes": 13}, {"S.No": 38, "Register_No": "RA2552001030006", "Student_Name": "PAYAL KUMARI", "Course_Code": "MBG24H09T", "Course_Title": "NLP AND PSYCHOLOGICAL TESTING (NEURO - LINGUISTIC PROGRAM)", "Attendance_Percentage": 82.35, "Status": "Eligible", "Total_Classes": 17, "Attended_Classes": 14}, {"S.No": 39, "Register_No": "RA2552001030006", "Student_Name": "PAYAL KUMARI", "Course_Code": "MBG24H06T", "Course_Title": "HUMAN RESOURCE METRICS AND ANALYTICS", "Attendance_Percentage": 82.35, "Status": "Eligible", "Total_Classes": 17, "Attended_Classes": 14}, {"S.No": 40, "Register_No": "RA2552001030006", "Student_Name": "PAYAL KUMARI", "Course_Code": "MBG24B06L", "Course_Title": "FINANCIAL ANALYTICS", "Attendance_Percentage": 82.35, "Status": "Eligible", "Total_Classes": 17, "Attended_Classes": 14}, {"S.No": 41, "Register_No": "RA2552001030006", "Student_Name": "PAYAL KUMARI", "Course_Code": "MBG24303L", "Course_Title": "MAIN PROJECT", "Attendance_Percentage": 95.83, "Status": "Eligible", "Total_Classes": 24, "Attended_Classes": 23}, {"S.No": 42, "Register_No": "RA2552001030006", "Student_Name": "PAYAL KUMARI", "Course_Code": "MBG24302T", "Course_Title": "ARTIFICIAL INTELLIGENCE FOR BUSINESS", "Attendance_Percentage": 81.25, "Status": "Eligible", "Total_Classes": 16, "Attended_Classes": 13}, {"S.No": 43, "Register_No": "RA2552001030007", "Student_Name": "BHARDWAJ MEGHNA RAJNEESH", "Course_Code": "MBG24F09T", "Course_Title": "FINANCIAL ANALYTICS", "Attendance_Percentage": 70.59, "Status": "Shortage", "Total_Classes": 17, "Attended_Classes": 12}, {"S.No": 44, "Register_No": "RA2552001030007", "Student_Name": "BHARDWAJ MEGHNA RAJNEESH", "Course_Code": "MBG24F05T", "Course_Title": "FINTECH", "Attendance_Percentage": 70.59, "Status": "Shortage", "Total_Classes": 17, "Attended_Classes": 12}, {"S.No": 45, "Register_No": "RA2552001030007", "Student_Name": "BHARDWAJ MEGHNA RAJNEESH", "Course_Code": "MBG24B11L", "Course_Title": "INTRODUCTION TO MACHINE LEARNING", "Attendance_Percentage": 70.59, "Status": "Shortage", "Total_Classes": 17, "Attended_Classes": 12}, {"S.No": 46, "Register_No": "RA2552001030007", "Student_Name": "BHARDWAJ MEGHNA RAJNEESH", "Course_Code": "MBG24303L", "Course_Title": "MAIN PROJECT", "Attendance_Percentage": 66.67, "Status": "Shortage", "Total_Classes": 24, "Attended_Classes": 16}, {"S.No": 47, "Register_No": "RA2552001030007", "Student_Name": "BHARDWAJ MEGHNA RAJNEESH", "Course_Code": "MBG24302T", "Course_Title": "ARTIFICIAL INTELLIGENCE FOR BUSINESS", "Attendance_Percentage": 75.0, "Status": "Eligible", "Total_Classes": 16, "Attended_Classes": 12}, {"S.No": 48, "Register_No": "RA2552001030007", "Student_Name": "BHARDWAJ MEGHNA RAJNEESH", "Course_Code": "MBG24301T", "Course_Title": "STRATEGIC MANAGEMENT", "Attendance_Percentage": 68.75, "Status": "Shortage", "Total_Classes": 16, "Attended_Classes": 11}, {"S.No": 49, "Register_No": "RA2552001030008", "Student_Name": "VARSHATYAGI", "Course_Code": "MBG24301T", "Course_Title": "STRATEGIC MANAGEMENT", "Attendance_Percentage": 87.5, "Status": "Eligible", "Total_Classes": 16, "Attended_Classes": 14}, {"S.No": 50, "Register_No": "RA2552001030008", "Student_Name": "VARSHATYAGI", "Course_Code": "MBG24M07T", "Course_Title": "INTEGRATED MARKETING COMMUNICATIONS", "Attendance_Percentage": 100.0, "Status": "Eligible", "Total_Classes": 17, "Attended_Classes": 17}, {"S.No": 51, "Register_No": "RA2552001030008", "Student_Name": "VARSHATYAGI", "Course_Code": "MBG24B11L", "Course_Title": "INTRODUCTION TO MACHINE LEARNING", "Attendance_Percentage": 100.0, "Status": "Eligible", "Total_Classes": 17, "Attended_Classes": 17}, {"S.No": 52, "Register_No": "RA2552001030008", "Student_Name": "VARSHATYAGI", "Course_Code": "MBG24B05L", "Course_Title": "MARKETING ANALYTICS", "Attendance_Percentage": 88.24, "Status": "Eligible", "Total_Classes": 17, "Attended_Classes": 15}, {"S.No": 53, "Register_No": "RA2552001030008", "Student_Name": "VARSHATYAGI", "Course_Code": "MBG24303L", "Course_Title": "MAIN PROJECT", "Attendance_Percentage": 100.0, "Status": "Eligible", "Total_Classes": 24, "Attended_Classes": 24}, {"S.No": 54, "Register_No": "RA2552001030008", "Student_Name": "VARSHATYAGI", "Course_Code": "MBG24302T", "Course_Title": "ARTIFICIAL INTELLIGENCE FOR BUSINESS", "Attendance_Percentage": 100.0, "Status": "Eligible", "Total_Classes": 16, "Attended_Classes": 16}, {"S.No": 55, "Register_No": "RA2552001030009", "Student_Name": "VIDYA R GAUR", "Course_Code": "MBG24301T", "Course_Title": "STRATEGIC MANAGEMENT", "Attendance_Percentage": 87.5, "Status": "Eligible", "Total_Classes": 16, "Attended_Classes": 14}, {"S.No": 56, "Register_No": "RA2552001030009", "Student_Name": "VIDYA R GAUR", "Course_Code": "MBG24302T", "Course_Title": "ARTIFICIAL INTELLIGENCE FOR BUSINESS", "Attendance_Percentage": 75.0, "Status": "Eligible", "Total_Classes": 16, "Attended_Classes": 12}, {"S.No": 57, "Register_No": "RA2552001030009", "Student_Name": "VIDYA R GAUR", "Course_Code": "MBG24303L", "Course_Title": "MAIN PROJECT", "Attendance_Percentage": 100.0, "Status": "Eligible", "Total_Classes": 24, "Attended_Classes": 24}, {"S.No": 58, "Register_No": "RA2552001030009", "Student_Name": "VIDYA R GAUR", "Course_Code": "MBG24B05L", "Course_Title": "MARKETING ANALYTICS", "Attendance_Percentage": 88.24, "Status": "Eligible", "Total_Classes": 17, "Attended_Classes": 15}, {"S.No": 59, "Register_No": "RA2552001030009", "Student_Name": "VIDYA R GAUR", "Course_Code": "MBG24B11L", "Course_Title": "INTRODUCTION TO MACHINE LEARNING", "Attendance_Percentage": 88.24, "Status": "Eligible", "Total_Classes": 17, "Attended_Classes": 15}, {"S.No": 60, "Register_No": "RA2552001030009", "Student_Name": "VIDYA R GAUR", "Course_Code": "MBG24M07T", "Course_Title": "INTEGRATED MARKETING COMMUNICATIONS", "Attendance_Percentage": 88.24, "Status": "Eligible", "Total_Classes": 17, "Attended_Classes": 15}, {"S.No": 61, "Register_No": "RA2552001030010", "Student_Name": "RITIK SINGH RANA", "Course_Code": "MBG24301T", "Course_Title": "STRATEGIC MANAGEMENT", "Attendance_Percentage": 62.5, "Status": "Shortage", "Total_Classes": 16, "Attended_Classes": 10}, {"S.No": 62, "Register_No": "RA2552001030010", "Student_Name": "RITIK SINGH RANA", "Course_Code": "MBG24302T", "Course_Title": "ARTIFICIAL INTELLIGENCE FOR BUSINESS", "Attendance_Percentage": 81.25, "Status": "Eligible", "Total_Classes": 16, "Attended_Classes": 13}, {"S.No": 63, "Register_No": "RA2552001030010", "Student_Name": "RITIK SINGH RANA", "Course_Code": "MBG24303L", "Course_Title": "MAIN PROJECT", "Attendance_Percentage": 54.17, "Status": "Shortage", "Total_Classes": 24, "Attended_Classes": 13}, {"S.No": 64, "Register_No": "RA2552001030010", "Student_Name": "RITIK SINGH RANA", "Course_Code": "MBG24B11L", "Course_Title": "INTRODUCTION TO MACHINE LEARNING", "Attendance_Percentage": 64.71, "Status": "Shortage", "Total_Classes": 17, "Attended_Classes": 11}, {"S.No": 65, "Register_No": "RA2552001030010", "Student_Name": "RITIK SINGH RANA", "Course_Code": "MBG24F05T", "Course_Title": "FINTECH", "Attendance_Percentage": 64.71, "Status": "Shortage", "Total_Classes": 17, "Attended_Classes": 11}, {"S.No": 66, "Register_No": "RA2552001030010", "Student_Name": "RITIK SINGH RANA", "Course_Code": "MBG24F09T", "Course_Title": "FINANCIAL ANALYTICS", "Attendance_Percentage": 64.71, "Status": "Shortage", "Total_Classes": 17, "Attended_Classes": 11}, {"S.No": 67, "Register_No": "RA2552001030011", "Student_Name": "SHIVAM SHARMA", "Course_Code": "MBG24F09T", "Course_Title": "FINANCIAL ANALYTICS", "Attendance_Percentage": 70.59, "Status": "Shortage", "Total_Classes": 17, "Attended_Classes": 12}, {"S.No": 68, "Register_No": "RA2552001030011", "Student_Name": "SHIVAM SHARMA", "Course_Code": "MBG24F05T", "Course_Title": "FINTECH", "Attendance_Percentage": 76.47, "Status": "Eligible", "Total_Classes": 17, "Attended_Classes": 13}, {"S.No": 69, "Register_No": "RA2552001030011", "Student_Name": "SHIVAM SHARMA", "Course_Code": "MBG24B11L", "Course_Title": "INTRODUCTION TO MACHINE LEARNING", "Attendance_Percentage": 76.47, "Status": "Eligible", "Total_Classes": 17, "Attended_Classes": 13}, {"S.No": 70, "Register_No": "RA2552001030011", "Student_Name": "SHIVAM SHARMA", "Course_Code": "MBG24303L", "Course_Title": "MAIN PROJECT", "Attendance_Percentage": 70.83, "Status": "Shortage", "Total_Classes": 24, "Attended_Classes": 17}, {"S.No": 71, "Register_No": "RA2552001030011", "Student_Name": "SHIVAM SHARMA", "Course_Code": "MBG24302T", "Course_Title": "ARTIFICIAL INTELLIGENCE FOR BUSINESS", "Attendance_Percentage": 81.25, "Status": "Eligible", "Total_Classes": 16, "Attended_Classes": 13}, {"S.No": 72, "Register_No": "RA2552001030011", "Student_Name": "SHIVAM SHARMA", "Course_Code": "MBG24301T", "Course_Title": "STRATEGIC MANAGEMENT", "Attendance_Percentage": 68.75, "Status": "Shortage", "Total_Classes": 16, "Attended_Classes": 11}, {"S.No": 73, "Register_No": "RA2552001030012", "Student_Name": "DIPANSHU", "Course_Code": "MBG24301T", "Course_Title": "STRATEGIC MANAGEMENT", "Attendance_Percentage": 75.0, "Status": "Eligible", "Total_Classes": 16, "Attended_Classes": 12}, {"S.No": 74, "Register_No": "RA2552001030012", "Student_Name": "DIPANSHU", "Course_Code": "MBG24302T", "Course_Title": "ARTIFICIAL INTELLIGENCE FOR BUSINESS", "Attendance_Percentage": 81.25, "Status": "Eligible", "Total_Classes": 16, "Attended_Classes": 13}, {"S.No": 75, "Register_No": "RA2552001030012", "Student_Name": "DIPANSHU", "Course_Code": "MBG24303L", "Course_Title": "MAIN PROJECT", "Attendance_Percentage": 91.67, "Status": "Eligible", "Total_Classes": 24, "Attended_Classes": 22}, {"S.No": 76, "Register_No": "RA2552001030012", "Student_Name": "DIPANSHU", "Course_Code": "MBG24B06L", "Course_Title": "FINANCIAL ANALYTICS", "Attendance_Percentage": 88.24, "Status": "Eligible", "Total_Classes": 17, "Attended_Classes": 15}, {"S.No": 77, "Register_No": "RA2552001030012", "Student_Name": "DIPANSHU", "Course_Code": "MBG24B11L", "Course_Title": "INTRODUCTION TO MACHINE LEARNING", "Attendance_Percentage": 82.35, "Status": "Eligible", "Total_Classes": 17, "Attended_Classes": 14}, {"S.No": 78, "Register_No": "RA2552001030012", "Student_Name": "DIPANSHU", "Course_Code": "MBG24F09T", "Course_Title": "FINANCIAL ANALYTICS", "Attendance_Percentage": 88.24, "Status": "Eligible", "Total_Classes": 17, "Attended_Classes": 15}, {"S.No": 79, "Register_No": "RA2552001030013", "Student_Name": "GAURAV CHAUHAN", "Course_Code": "MBG24B11L", "Course_Title": "INTRODUCTION TO MACHINE LEARNING", "Attendance_Percentage": 82.35, "Status": "Eligible", "Total_Classes": 17, "Attended_Classes": 14}, {"S.No": 80, "Register_No": "RA2552001030013", "Student_Name": "GAURAV CHAUHAN", "Course_Code": "MBG24301T", "Course_Title": "STRATEGIC MANAGEMENT", "Attendance_Percentage": 81.25, "Status": "Eligible", "Total_Classes": 16, "Attended_Classes": 13}, {"S.No": 81, "Register_No": "RA2552001030013", "Student_Name": "GAURAV CHAUHAN", "Course_Code": "MBG24302T", "Course_Title": "ARTIFICIAL INTELLIGENCE FOR BUSINESS", "Attendance_Percentage": 81.25, "Status": "Eligible", "Total_Classes": 16, "Attended_Classes": 13}, {"S.No": 82, "Register_No": "RA2552001030013", "Student_Name": "GAURAV CHAUHAN", "Course_Code": "MBG24303L", "Course_Title": "MAIN PROJECT", "Attendance_Percentage": 70.83, "Status": "Shortage", "Total_Classes": 24, "Attended_Classes": 17}, {"S.No": 83, "Register_No": "RA2552001030013", "Student_Name": "GAURAV CHAUHAN", "Course_Code": "MBG24F05T", "Course_Title": "FINTECH", "Attendance_Percentage": 76.47, "Status": "Eligible", "Total_Classes": 17, "Attended_Classes": 13}, {"S.No": 84, "Register_No": "RA2552001030013", "Student_Name": "GAURAV CHAUHAN", "Course_Code": "MBG24F09T", "Course_Title": "FINANCIAL ANALYTICS", "Attendance_Percentage": 82.35, "Status": "Eligible", "Total_Classes": 17, "Attended_Classes": 14}, {"S.No": 85, "Register_No": "RA2552001030015", "Student_Name": "CHIRAG TYAGI", "Course_Code": "MBG24F09T", "Course_Title": "FINANCIAL ANALYTICS", "Attendance_Percentage": 70.59, "Status": "Shortage", "Total_Classes": 17, "Attended_Classes": 12}, {"S.No": 86, "Register_No": "RA2552001030015", "Student_Name": "CHIRAG TYAGI", "Course_Code": "MBG24301T", "Course_Title": "STRATEGIC MANAGEMENT", "Attendance_Percentage": 68.75, "Status": "Shortage", "Total_Classes": 16, "Attended_Classes": 11}, {"S.No": 87, "Register_No": "RA2552001030015", "Student_Name": "CHIRAG TYAGI", "Course_Code": "MBG24302T", "Course_Title": "ARTIFICIAL INTELLIGENCE FOR BUSINESS", "Attendance_Percentage": 68.75, "Status": "Shortage", "Total_Classes": 16, "Attended_Classes": 11}, {"S.No": 88, "Register_No": "RA2552001030015", "Student_Name": "CHIRAG TYAGI", "Course_Code": "MBG24303L", "Course_Title": "MAIN PROJECT", "Attendance_Percentage": 54.17, "Status": "Shortage", "Total_Classes": 24, "Attended_Classes": 13}, {"S.No": 89, "Register_No": "RA2552001030015", "Student_Name": "CHIRAG TYAGI", "Course_Code": "MBG24B06L", "Course_Title": "FINANCIAL ANALYTICS", "Attendance_Percentage": 70.59, "Status": "Shortage", "Total_Classes": 17, "Attended_Classes": 12}, {"S.No": 90, "Register_No": "RA2552001030015", "Student_Name": "CHIRAG TYAGI", "Course_Code": "MBG24B11L", "Course_Title": "INTRODUCTION TO MACHINE LEARNING", "Attendance_Percentage": 70.59, "Status": "Shortage", "Total_Classes": 17, "Attended_Classes": 12}, {"S.No": 91, "Register_No": "RA2552001030016", "Student_Name": "AKSHAT SRIVASTAVA", "Course_Code": "MBG24301T", "Course_Title": "STRATEGIC MANAGEMENT", "Attendance_Percentage": 62.5, "Status": "Shortage", "Total_Classes": 16, "Attended_Classes": 10}, {"S.No": 92, "Register_No": "RA2552001030016", "Student_Name": "AKSHAT SRIVASTAVA", "Course_Code": "MBG24F09T", "Course_Title": "FINANCIAL ANALYTICS", "Attendance_Percentage": 58.82, "Status": "Shortage", "Total_Classes": 17, "Attended_Classes": 10}, {"S.No": 93, "Register_No": "RA2552001030016", "Student_Name": "AKSHAT SRIVASTAVA", "Course_Code": "MBG24B11L", "Course_Title": "INTRODUCTION TO MACHINE LEARNING", "Attendance_Percentage": 58.82, "Status": "Shortage", "Total_Classes": 17, "Attended_Classes": 10}, {"S.No": 94, "Register_No": "RA2552001030016", "Student_Name": "AKSHAT SRIVASTAVA", "Course_Code": "MBG24B06L", "Course_Title": "FINANCIAL ANALYTICS", "Attendance_Percentage": 58.82, "Status": "Shortage", "Total_Classes": 17, "Attended_Classes": 10}, {"S.No": 95, "Register_No": "RA2552001030016", "Student_Name": "AKSHAT SRIVASTAVA", "Course_Code": "MBG24303L", "Course_Title": "MAIN PROJECT", "Attendance_Percentage": 87.5, "Status": "Eligible", "Total_Classes": 24, "Attended_Classes": 21}, {"S.No": 96, "Register_No": "RA2552001030016", "Student_Name": "AKSHAT SRIVASTAVA", "Course_Code": "MBG24302T", "Course_Title": "ARTIFICIAL INTELLIGENCE FOR BUSINESS", "Attendance_Percentage": 56.25, "Status": "Shortage", "Total_Classes": 16, "Attended_Classes": 9}, {"S.No": 97, "Register_No": "RA2552001030017", "Student_Name": "AKSHAY SHARAWAT", "Course_Code": "MBG24303L", "Course_Title": "MAIN PROJECT", "Attendance_Percentage": 70.83, "Status": "Shortage", "Total_Classes": 24, "Attended_Classes": 17}, {"S.No": 98, "Register_No": "RA2552001030017", "Student_Name": "AKSHAY SHARAWAT", "Course_Code": "MBG24F05T", "Course_Title": "FINTECH", "Attendance_Percentage": 76.47, "Status": "Eligible", "Total_Classes": 17, "Attended_Classes": 13}, {"S.No": 99, "Register_No": "RA2552001030017", "Student_Name": "AKSHAY SHARAWAT", "Course_Code": "MBG24B11L", "Course_Title": "INTRODUCTION TO MACHINE LEARNING", "Attendance_Percentage": 76.47, "Status": "Eligible", "Total_Classes": 17, "Attended_Classes": 13}, {"S.No": 100, "Register_No": "RA2552001030017", "Student_Name": "AKSHAY SHARAWAT", "Course_Code": "MBG24301T", "Course_Title": "STRATEGIC MANAGEMENT", "Attendance_Percentage": 62.5, "Status": "Shortage", "Total_Classes": 16, "Attended_Classes": 10}, {"S.No": 101, "Register_No": "RA2552001030017", "Student_Name": "AKSHAY SHARAWAT", "Course_Code": "MBG24B05L", "Course_Title": "MARKETING ANALYTICS", "Attendance_Percentage": 41.18, "Status": "Shortage", "Total_Classes": 17, "Attended_Classes": 7}, {"S.No": 102, "Register_No": "RA2552001030017", "Student_Name": "AKSHAY SHARAWAT", "Course_Code": "MBG24302T", "Course_Title": "ARTIFICIAL INTELLIGENCE FOR BUSINESS", "Attendance_Percentage": 50.0, "Status": "Shortage", "Total_Classes": 16, "Attended_Classes": 8}, {"S.No": 103, "Register_No": "RA2552001030018", "Student_Name": "SANJEEV SAURAV", "Course_Code": "MBG24301T", "Course_Title": "STRATEGIC MANAGEMENT", "Attendance_Percentage": 62.5, "Status": "Shortage", "Total_Classes": 16, "Attended_Classes": 10}, {"S.No": 104, "Register_No": "RA2552001030018", "Student_Name": "SANJEEV SAURAV", "Course_Code": "MBG24302T", "Course_Title": "ARTIFICIAL INTELLIGENCE FOR BUSINESS", "Attendance_Percentage": 68.75, "Status": "Shortage", "Total_Classes": 16, "Attended_Classes": 11}, {"S.No": 105, "Register_No": "RA2552001030018", "Student_Name": "SANJEEV SAURAV", "Course_Code": "MBG24303L", "Course_Title": "MAIN PROJECT", "Attendance_Percentage": 54.17, "Status": "Shortage", "Total_Classes": 24, "Attended_Classes": 13}, {"S.No": 106, "Register_No": "RA2552001030018", "Student_Name": "SANJEEV SAURAV", "Course_Code": "MBG24B05L", "Course_Title": "MARKETING ANALYTICS", "Attendance_Percentage": 64.71, "Status": "Shortage", "Total_Classes": 17, "Attended_Classes": 11}, {"S.No": 107, "Register_No": "RA2552001030018", "Student_Name": "SANJEEV SAURAV", "Course_Code": "MBG24B11L", "Course_Title": "INTRODUCTION TO MACHINE LEARNING", "Attendance_Percentage": 58.82, "Status": "Shortage", "Total_Classes": 17, "Attended_Classes": 10}, {"S.No": 108, "Register_No": "RA2552001030018", "Student_Name": "SANJEEV SAURAV", "Course_Code": "MBG24M07T", "Course_Title": "INTEGRATED MARKETING COMMUNICATIONS", "Attendance_Percentage": 58.82, "Status": "Shortage", "Total_Classes": 17, "Attended_Classes": 10}, {"S.No": 109, "Register_No": "RA2552001030019", "Student_Name": "VANSHI SEN JINDAL", "Course_Code": "MBG24F09T", "Course_Title": "FINANCIAL ANALYTICS", "Attendance_Percentage": 76.47, "Status": "Eligible", "Total_Classes": 17, "Attended_Classes": 13}, {"S.No": 110, "Register_No": "RA2552001030019", "Student_Name": "VANSHI SEN JINDAL", "Course_Code": "MBG24301T", "Course_Title": "STRATEGIC MANAGEMENT", "Attendance_Percentage": 75.0, "Status": "Eligible", "Total_Classes": 16, "Attended_Classes": 12}, {"S.No": 111, "Register_No": "RA2552001030019", "Student_Name": "VANSHI SEN JINDAL", "Course_Code": "MBG24302T", "Course_Title": "ARTIFICIAL INTELLIGENCE FOR BUSINESS", "Attendance_Percentage": 68.75, "Status": "Shortage", "Total_Classes": 16, "Attended_Classes": 11}, {"S.No": 112, "Register_No": "RA2552001030019", "Student_Name": "VANSHI SEN JINDAL", "Course_Code": "MBG24303L", "Course_Title": "MAIN PROJECT", "Attendance_Percentage": 87.5, "Status": "Eligible", "Total_Classes": 24, "Attended_Classes": 21}, {"S.No": 113, "Register_No": "RA2552001030019", "Student_Name": "VANSHI SEN JINDAL", "Course_Code": "MBG24B11L", "Course_Title": "INTRODUCTION TO MACHINE LEARNING", "Attendance_Percentage": 82.35, "Status": "Eligible", "Total_Classes": 17, "Attended_Classes": 14}, {"S.No": 114, "Register_No": "RA2552001030019", "Student_Name": "VANSHI SEN JINDAL", "Course_Code": "MBG24F05T", "Course_Title": "FINTECH", "Attendance_Percentage": 70.59, "Status": "Shortage", "Total_Classes": 17, "Attended_Classes": 12}, {"S.No": 115, "Register_No": "RA2552001030020", "Student_Name": "SHUBHAM TYAGI", "Course_Code": "MBG24301T", "Course_Title": "STRATEGIC MANAGEMENT", "Attendance_Percentage": 43.75, "Status": "Shortage", "Total_Classes": 16, "Attended_Classes": 7}, {"S.No": 116, "Register_No": "RA2552001030020", "Student_Name": "SHUBHAM TYAGI", "Course_Code": "MBG24B11L", "Course_Title": "INTRODUCTION TO MACHINE LEARNING", "Attendance_Percentage": 47.06, "Status": "Shortage", "Total_Classes": 17, "Attended_Classes": 8}, {"S.No": 117, "Register_No": "RA2552001030020", "Student_Name": "SHUBHAM TYAGI", "Course_Code": "MBG24B06L", "Course_Title": "FINANCIAL ANALYTICS", "Attendance_Percentage": 41.18, "Status": "Shortage", "Total_Classes": 17, "Attended_Classes": 7}, {"S.No": 118, "Register_No": "RA2552001030020", "Student_Name": "SHUBHAM TYAGI", "Course_Code": "MBG24303L", "Course_Title": "MAIN PROJECT", "Attendance_Percentage": 75.0, "Status": "Eligible", "Total_Classes": 24, "Attended_Classes": 18}, {"S.No": 119, "Register_No": "RA2552001030020", "Student_Name": "SHUBHAM TYAGI", "Course_Code": "MBG24302T", "Course_Title": "ARTIFICIAL INTELLIGENCE FOR BUSINESS", "Attendance_Percentage": 43.75, "Status": "Shortage", "Total_Classes": 16, "Attended_Classes": 7}, {"S.No": 120, "Register_No": "RA2552001030020", "Student_Name": "SHUBHAM TYAGI", "Course_Code": "MBG24F09T", "Course_Title": "FINANCIAL ANALYTICS", "Attendance_Percentage": 41.18, "Status": "Shortage", "Total_Classes": 17, "Attended_Classes": 7}, {"S.No": 121, "Register_No": "RA2552001030021", "Student_Name": "RUTH SAINI", "Course_Code": "MBG24302T", "Course_Title": "ARTIFICIAL INTELLIGENCE FOR BUSINESS", "Attendance_Percentage": 43.75, "Status": "Shortage", "Total_Classes": 16, "Attended_Classes": 7}, {"S.No": 122, "Register_No": "RA2552001030021", "Student_Name": "RUTH SAINI", "Course_Code": "MBG24303L", "Course_Title": "MAIN PROJECT", "Attendance_Percentage": 75.0, "Status": "Eligible", "Total_Classes": 24, "Attended_Classes": 18}, {"S.No": 123, "Register_No": "RA2552001030021", "Student_Name": "RUTH SAINI", "Course_Code": "MBG24B06L", "Course_Title": "FINANCIAL ANALYTICS", "Attendance_Percentage": 41.18, "Status": "Shortage", "Total_Classes": 17, "Attended_Classes": 7}, {"S.No": 124, "Register_No": "RA2552001030021", "Student_Name": "RUTH SAINI", "Course_Code": "MBG24H06T", "Course_Title": "HUMAN RESOURCE METRICS AND ANALYTICS", "Attendance_Percentage": 47.06, "Status": "Shortage", "Total_Classes": 17, "Attended_Classes": 8}, {"S.No": 125, "Register_No": "RA2552001030021", "Student_Name": "RUTH SAINI", "Course_Code": "MBG24H09T", "Course_Title": "NLP AND PSYCHOLOGICAL TESTING (NEURO - LINGUISTIC PROGRAM)", "Attendance_Percentage": 41.18, "Status": "Shortage", "Total_Classes": 17, "Attended_Classes": 7}, {"S.No": 126, "Register_No": "RA2552001030021", "Student_Name": "RUTH SAINI", "Course_Code": "MBG24301T", "Course_Title": "STRATEGIC MANAGEMENT", "Attendance_Percentage": 43.75, "Status": "Shortage", "Total_Classes": 16, "Attended_Classes": 7}, {"S.No": 127, "Register_No": "RA2552001030022", "Student_Name": "ITIKA GUPTA", "Course_Code": "MBG24M11T", "Course_Title": "RETAIL MANAGEMENT", "Attendance_Percentage": 76.47, "Status": "Eligible", "Total_Classes": 17, "Attended_Classes": 13}, {"S.No": 128, "Register_No": "RA2552001030022", "Student_Name": "ITIKA GUPTA", "Course_Code": "MBG24B05L", "Course_Title": "MARKETING ANALYTICS", "Attendance_Percentage": 76.47, "Status": "Eligible", "Total_Classes": 17, "Attended_Classes": 13}, {"S.No": 129, "Register_No": "RA2552001030022", "Student_Name": "ITIKA GUPTA", "Course_Code": "MBG24303L", "Course_Title": "MAIN PROJECT", "Attendance_Percentage": 83.33, "Status": "Eligible", "Total_Classes": 24, "Attended_Classes": 20}, {"S.No": 130, "Register_No": "RA2552001030022", "Student_Name": "ITIKA GUPTA", "Course_Code": "MBG24302T", "Course_Title": "ARTIFICIAL INTELLIGENCE FOR BUSINESS", "Attendance_Percentage": 62.5, "Status": "Shortage", "Total_Classes": 16, "Attended_Classes": 10}, {"S.No": 131, "Register_No": "RA2552001030022", "Student_Name": "ITIKA GUPTA", "Course_Code": "MBG24301T", "Course_Title": "STRATEGIC MANAGEMENT", "Attendance_Percentage": 75.0, "Status": "Eligible", "Total_Classes": 16, "Attended_Classes": 12}, {"S.No": 132, "Register_No": "RA2552001030022", "Student_Name": "ITIKA GUPTA", "Course_Code": "MBG24M07T", "Course_Title": "INTEGRATED MARKETING COMMUNICATIONS", "Attendance_Percentage": 76.47, "Status": "Eligible", "Total_Classes": 17, "Attended_Classes": 13}, {"S.No": 133, "Register_No": "RA2552001030023", "Student_Name": "ARHAM KHAN", "Course_Code": "MBG24F05T", "Course_Title": "FINTECH", "Attendance_Percentage": 64.71, "Status": "Shortage", "Total_Classes": 17, "Attended_Classes": 11}, {"S.No": 134, "Register_No": "RA2552001030023", "Student_Name": "ARHAM KHAN", "Course_Code": "MBG24301T", "Course_Title": "STRATEGIC MANAGEMENT", "Attendance_Percentage": 62.5, "Status": "Shortage", "Total_Classes": 16, "Attended_Classes": 10}, {"S.No": 135, "Register_No": "RA2552001030023", "Student_Name": "ARHAM KHAN", "Course_Code": "MBG24302T", "Course_Title": "ARTIFICIAL INTELLIGENCE FOR BUSINESS", "Attendance_Percentage": 75.0, "Status": "Eligible", "Total_Classes": 16, "Attended_Classes": 12}, {"S.No": 136, "Register_No": "RA2552001030023", "Student_Name": "ARHAM KHAN", "Course_Code": "MBG24303L", "Course_Title": "MAIN PROJECT", "Attendance_Percentage": 83.33, "Status": "Eligible", "Total_Classes": 24, "Attended_Classes": 20}, {"S.No": 137, "Register_No": "RA2552001030023", "Student_Name": "ARHAM KHAN", "Course_Code": "MBG24B11L", "Course_Title": "INTRODUCTION TO MACHINE LEARNING", "Attendance_Percentage": 58.82, "Status": "Shortage", "Total_Classes": 17, "Attended_Classes": 10}, {"S.No": 138, "Register_No": "RA2552001030023", "Student_Name": "ARHAM KHAN", "Course_Code": "MBG24F09T", "Course_Title": "FINANCIAL ANALYTICS", "Attendance_Percentage": 58.82, "Status": "Shortage", "Total_Classes": 17, "Attended_Classes": 10}, {"S.No": 139, "Register_No": "RA2552001030024", "Student_Name": "ANSH", "Course_Code": "MBG24F09T", "Course_Title": "FINANCIAL ANALYTICS", "Attendance_Percentage": 70.59, "Status": "Shortage", "Total_Classes": 17, "Attended_Classes": 12}, {"S.No": 140, "Register_No": "RA2552001030024", "Student_Name": "ANSH", "Course_Code": "MBG24F05T", "Course_Title": "FINTECH", "Attendance_Percentage": 70.59, "Status": "Shortage", "Total_Classes": 17, "Attended_Classes": 12}, {"S.No": 141, "Register_No": "RA2552001030024", "Student_Name": "ANSH", "Course_Code": "MBG24B11L", "Course_Title": "INTRODUCTION TO MACHINE LEARNING", "Attendance_Percentage": 76.47, "Status": "Eligible", "Total_Classes": 17, "Attended_Classes": 13}, {"S.No": 142, "Register_No": "RA2552001030024", "Student_Name": "ANSH", "Course_Code": "MBG24303L", "Course_Title": "MAIN PROJECT", "Attendance_Percentage": 87.5, "Status": "Eligible", "Total_Classes": 24, "Attended_Classes": 21}, {"S.No": 143, "Register_No": "RA2552001030024", "Student_Name": "ANSH", "Course_Code": "MBG24302T", "Course_Title": "ARTIFICIAL INTELLIGENCE FOR BUSINESS", "Attendance_Percentage": 62.5, "Status": "Shortage", "Total_Classes": 16, "Attended_Classes": 10}, {"S.No": 144, "Register_No": "RA2552001030024", "Student_Name": "ANSH", "Course_Code": "MBG24301T", "Course_Title": "STRATEGIC MANAGEMENT", "Attendance_Percentage": 75.0, "Status": "Eligible", "Total_Classes": 16, "Attended_Classes": 12}, {"S.No": 145, "Register_No": "RA2552001030025", "Student_Name": "MO KAIF CHAUDHARY", "Course_Code": "MBG24301T", "Course_Title": "STRATEGIC MANAGEMENT", "Attendance_Percentage": 87.5, "Status": "Eligible", "Total_Classes": 16, "Attended_Classes": 14}, {"S.No": 146, "Register_No": "RA2552001030025", "Student_Name": "MO KAIF CHAUDHARY", "Course_Code": "MBG24302T", "Course_Title": "ARTIFICIAL INTELLIGENCE FOR BUSINESS", "Attendance_Percentage": 75.0, "Status": "Eligible", "Total_Classes": 16, "Attended_Classes": 12}, {"S.No": 147, "Register_No": "RA2552001030025", "Student_Name": "MO KAIF CHAUDHARY", "Course_Code": "MBG24303L", "Course_Title": "MAIN PROJECT", "Attendance_Percentage": 91.67, "Status": "Eligible", "Total_Classes": 24, "Attended_Classes": 22}, {"S.No": 148, "Register_No": "RA2552001030025", "Student_Name": "MO KAIF CHAUDHARY", "Course_Code": "MBG24B11L", "Course_Title": "INTRODUCTION TO MACHINE LEARNING", "Attendance_Percentage": 82.35, "Status": "Eligible", "Total_Classes": 17, "Attended_Classes": 14}, {"S.No": 149, "Register_No": "RA2552001030025", "Student_Name": "MO KAIF CHAUDHARY", "Course_Code": "MBG24F05T", "Course_Title": "FINTECH", "Attendance_Percentage": 82.35, "Status": "Eligible", "Total_Classes": 17, "Attended_Classes": 14}, {"S.No": 150, "Register_No": "RA2552001030025", "Student_Name": "MO KAIF CHAUDHARY", "Course_Code": "MBG24F09T", "Course_Title": "FINANCIAL ANALYTICS", "Attendance_Percentage": 82.35, "Status": "Eligible", "Total_Classes": 17, "Attended_Classes": 14}, {"S.No": 151, "Register_No": "RA2552001030026", "Student_Name": "KOMAL KUMARI", "Course_Code": "MBG24301T", "Course_Title": "STRATEGIC MANAGEMENT", "Attendance_Percentage": 62.5, "Status": "Shortage", "Total_Classes": 16, "Attended_Classes": 10}, {"S.No": 152, "Register_No": "RA2552001030026", "Student_Name": "KOMAL KUMARI", "Course_Code": "MBG24302T", "Course_Title": "ARTIFICIAL INTELLIGENCE FOR BUSINESS", "Attendance_Percentage": 56.25, "Status": "Shortage", "Total_Classes": 16, "Attended_Classes": 9}, {"S.No": 153, "Register_No": "RA2552001030026", "Student_Name": "KOMAL KUMARI", "Course_Code": "MBG24303L", "Course_Title": "MAIN PROJECT", "Attendance_Percentage": 91.67, "Status": "Eligible", "Total_Classes": 24, "Attended_Classes": 22}, {"S.No": 154, "Register_No": "RA2552001030026", "Student_Name": "KOMAL KUMARI", "Course_Code": "MBG24B06L", "Course_Title": "FINANCIAL ANALYTICS", "Attendance_Percentage": 58.82, "Status": "Shortage", "Total_Classes": 17, "Attended_Classes": 10}, {"S.No": 155, "Register_No": "RA2552001030026", "Student_Name": "KOMAL KUMARI", "Course_Code": "MBG24H06T", "Course_Title": "HUMAN RESOURCE METRICS AND ANALYTICS", "Attendance_Percentage": 70.59, "Status": "Shortage", "Total_Classes": 17, "Attended_Classes": 12}, {"S.No": 156, "Register_No": "RA2552001030026", "Student_Name": "KOMAL KUMARI", "Course_Code": "MBG24H09T", "Course_Title": "NLP AND PSYCHOLOGICAL TESTING (NEURO - LINGUISTIC PROGRAM)", "Attendance_Percentage": 58.82, "Status": "Shortage", "Total_Classes": 17, "Attended_Classes": 10}, {"S.No": 157, "Register_No": "RA2552001030027", "Student_Name": "KUMAR AJJ RUHELA", "Course_Code": "MBG24301T", "Course_Title": "STRATEGIC MANAGEMENT", "Attendance_Percentage": 43.75, "Status": "Shortage", "Total_Classes": 16, "Attended_Classes": 7}, {"S.No": 158, "Register_No": "RA2552001030027", "Student_Name": "KUMAR AJJ RUHELA", "Course_Code": "MBG24302T", "Course_Title": "ARTIFICIAL INTELLIGENCE FOR BUSINESS", "Attendance_Percentage": 56.25, "Status": "Shortage", "Total_Classes": 16, "Attended_Classes": 9}, {"S.No": 159, "Register_No": "RA2552001030027", "Student_Name": "KUMAR AJJ RUHELA", "Course_Code": "MBG24303L", "Course_Title": "MAIN PROJECT", "Attendance_Percentage": 54.17, "Status": "Shortage", "Total_Classes": 24, "Attended_Classes": 13}, {"S.No": 160, "Register_No": "RA2552001030027", "Student_Name": "KUMAR AJJ RUHELA", "Course_Code": "MBG24B06L", "Course_Title": "FINANCIAL ANALYTICS", "Attendance_Percentage": 35.29, "Status": "Shortage", "Total_Classes": 17, "Attended_Classes": 6}, {"S.No": 161, "Register_No": "RA2552001030027", "Student_Name": "KUMAR AJJ RUHELA", "Course_Code": "MBG24B11L", "Course_Title": "INTRODUCTION TO MACHINE LEARNING", "Attendance_Percentage": 52.94, "Status": "Shortage", "Total_Classes": 17, "Attended_Classes": 9}, {"S.No": 162, "Register_No": "RA2552001030027", "Student_Name": "KUMAR AJJ RUHELA", "Course_Code": "MBG24H09T", "Course_Title": "NLP AND PSYCHOLOGICAL TESTING (NEURO - LINGUISTIC PROGRAM)", "Attendance_Percentage": 41.18, "Status": "Shortage", "Total_Classes": 17, "Attended_Classes": 7}, {"S.No": 163, "Register_No": "RA2552001030028", "Student_Name": "SUMEDHA CHAUDHARY", "Course_Code": "MBG24301T", "Course_Title": "STRATEGIC MANAGEMENT", "Attendance_Percentage": 75.0, "Status": "Eligible", "Total_Classes": 16, "Attended_Classes": 12}, {"S.No": 164, "Register_No": "RA2552001030028", "Student_Name": "SUMEDHA CHAUDHARY", "Course_Code": "MBG24302T", "Course_Title": "ARTIFICIAL INTELLIGENCE FOR BUSINESS", "Attendance_Percentage": 56.25, "Status": "Shortage", "Total_Classes": 16, "Attended_Classes": 9}, {"S.No": 165, "Register_No": "RA2552001030028", "Student_Name": "SUMEDHA CHAUDHARY", "Course_Code": "MBG24303L", "Course_Title": "MAIN PROJECT", "Attendance_Percentage": 83.33, "Status": "Eligible", "Total_Classes": 24, "Attended_Classes": 20}, {"S.No": 166, "Register_No": "RA2552001030028", "Student_Name": "SUMEDHA CHAUDHARY", "Course_Code": "MBG24B05L", "Course_Title": "MARKETING ANALYTICS", "Attendance_Percentage": 76.47, "Status": "Eligible", "Total_Classes": 17, "Attended_Classes": 13}, {"S.No": 167, "Register_No": "RA2552001030028", "Student_Name": "SUMEDHA CHAUDHARY", "Course_Code": "MBG24M07T", "Course_Title": "INTEGRATED MARKETING COMMUNICATIONS", "Attendance_Percentage": 76.47, "Status": "Eligible", "Total_Classes": 17, "Attended_Classes": 13}, {"S.No": 168, "Register_No": "RA2552001030028", "Student_Name": "SUMEDHA CHAUDHARY", "Course_Code": "MBG24M11T", "Course_Title": "RETAIL MANAGEMENT", "Attendance_Percentage": 76.47, "Status": "Eligible", "Total_Classes": 17, "Attended_Classes": 13}, {"S.No": 169, "Register_No": "RA2552001030029", "Student_Name": "AROHI SAXENA", "Course_Code": "MBG24301T", "Course_Title": "STRATEGIC MANAGEMENT", "Attendance_Percentage": 37.5, "Status": "Shortage", "Total_Classes": 16, "Attended_Classes": 6}, {"S.No": 170, "Register_No": "RA2552001030029", "Student_Name": "AROHI SAXENA", "Course_Code": "MBG24302T", "Course_Title": "ARTIFICIAL INTELLIGENCE FOR BUSINESS", "Attendance_Percentage": 31.25, "Status": "Shortage", "Total_Classes": 16, "Attended_Classes": 5}, {"S.No": 171, "Register_No": "RA2552001030029", "Student_Name": "AROHI SAXENA", "Course_Code": "MBG24F09T", "Course_Title": "FINANCIAL ANALYTICS", "Attendance_Percentage": 35.29, "Status": "Shortage", "Total_Classes": 17, "Attended_Classes": 6}, {"S.No": 172, "Register_No": "RA2552001030029", "Student_Name": "AROHI SAXENA", "Course_Code": "MBG24B11L", "Course_Title": "INTRODUCTION TO MACHINE LEARNING", "Attendance_Percentage": 17.65, "Status": "Shortage", "Total_Classes": 17, "Attended_Classes": 3}, {"S.No": 173, "Register_No": "RA2552001030029", "Student_Name": "AROHI SAXENA", "Course_Code": "MBG24B06L", "Course_Title": "FINANCIAL ANALYTICS", "Attendance_Percentage": 35.29, "Status": "Shortage", "Total_Classes": 17, "Attended_Classes": 6}, {"S.No": 174, "Register_No": "RA2552001030029", "Student_Name": "AROHI SAXENA", "Course_Code": "MBG24303L", "Course_Title": "MAIN PROJECT", "Attendance_Percentage": 37.5, "Status": "Shortage", "Total_Classes": 24, "Attended_Classes": 9}];
+
+        // Navigation
+        function switchTab(tabId) {
+            const tabs = ['dashboard', 'defaulters', 'calculator', 'student', 'rankings', 'records'];
+            tabs.forEach(t => {
+                document.getElementById('tab-' + t).classList.add('hidden');
+            });
+            document.getElementById('tab-' + tabId).classList.remove('hidden');
+
+            document.querySelectorAll('#nav-links .nav-btn').forEach(btn => {
+                if (btn.getAttribute('data-tab') === tabId) {
+                    btn.classList.add('active');
+                } else {
+                    btn.classList.remove('active');
+                }
+            });
+
+            const titles = {
+                'dashboard': 'MBA 2nd Year 3rd Sem - Dashboard',
+                'defaulters': 'MBA 2nd Year 3rd Sem - Defaulters List',
+                'calculator': 'MBA 2nd Year 3rd Sem - Attendance Calculator',
+                'student': 'MBA 2nd Year 3rd Sem - Student Report Card',
+                'rankings': 'MBA 2nd Year 3rd Sem - Subject Rankings',
+                'records': 'MBA 2nd Year 3rd Sem - Master Records'
+            };
+            document.getElementById('pageTitle').innerText = titles[tabId];
+        }
+
+        // Initialization
+        window.onload = function() {
+            populateFilters();
+            renderCharts();
+            renderDefaulters();
+            initCalculator();
+            renderRankings();
+            renderMasterRecords(rawData);
+            renderStudentReport();
+        };
+
+        function populateFilters() {
+            const courses = [...new Set(rawData.map(r => r.Course_Title))].sort();
+            const courseSelect = document.getElementById('courseFilter');
+            courses.forEach(c => {
+                const opt = document.createElement('option');
+                opt.value = c;
+                opt.innerText = c;
+                courseSelect.appendChild(opt);
+            });
+        }
+
+        function applyGlobalFilter() {
+            const selCourse = document.getElementById('courseFilter').value;
+            const selStatus = document.getElementById('statusFilter').value;
+            const searchKw = (document.getElementById('searchInput') ? document.getElementById('searchInput').value : '').toLowerCase().trim();
+
+            let filtered = rawData.filter(r => {
+                const matchCourse = selCourse === 'ALL' || r.Course_Title === selCourse;
+                const matchStatus = selStatus === 'ALL' || r.Status === selStatus;
+                const matchSearch = !searchKw || r.Student_Name.toLowerCase().includes(searchKw) || r.Register_No.toLowerCase().includes(searchKw);
+                return matchCourse && matchStatus && matchSearch;
+            });
+
+            renderMasterRecords(filtered);
+        }
+
+        // Charts
+        function renderCharts() {
+            // Donut Chart
+            new Chart(document.getElementById('donutChart'), {
+                type: 'doughnut',
+                data: {
+                    labels: ['Eligible (≥75%)', 'Shortage (<75%)'],
+                    datasets: [{
+                        data: [94, 80],
+                        backgroundColor: ['#10B981', '#F43F5E'],
+                        borderWidth: 3,
+                        borderColor: '#0A0E1A'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    cutout: '72%',
+                    plugins: { legend: { display: false } }
+                }
+            });
+
+            // Variance Chart
+            new Chart(document.getElementById('varianceChart'), {
+                type: 'bar',
+                data: {
+                    labels: ['MBG24301T', 'MBG24302T', 'MBG24303L', 'MBG24B05L', 'MBG24B06L', 'MBG24B11L'],
+                    datasets: [{
+                        data: [-6.47, -7.54, 3.45, -7.35, -12.43, -5.64],
+                        backgroundColor: ['#F43F5E', '#F43F5E', '#10B981', '#F43F5E', '#F43F5E', '#F43F5E'],
+                        borderRadius: 6
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        y: { grid: { color: 'rgba(255,255,255,0.06)' }, ticks: { color: '#94A3B8' } },
+                        x: { grid: { display: false }, ticks: { color: '#94A3B8' } }
+                    }
+                }
+            });
+
+            // Benchmarks Chart
+            new Chart(document.getElementById('benchmarksChart'), {
+                type: 'bar',
+                data: {
+                    labels: ['303L', 'M11T', 'F05T', 'F09T', 'M07T', 'B11L', '301T'],
+                    datasets: [{
+                        data: [78.45, 76.47, 74.51, 70.59, 70.59, 69.36, 68.53],
+                        backgroundColor: ['#38BDF8', '#818CF8', '#6366F1', '#6366F1', '#6366F1', '#6366F1', '#6366F1'],
+                        borderRadius: 6
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        y: { min: 0, max: 100, grid: { color: 'rgba(255,255,255,0.06)' }, ticks: { color: '#94A3B8' } },
+                        x: { grid: { display: false }, ticks: { color: '#94A3B8' } }
+                    }
+                }
+            });
+        }
+
+        // Defaulters List
+        function renderDefaulters() {
+            const studentsMap = {};
+            rawData.forEach(r => {
+                if (!studentsMap[r.Register_No]) {
+                    studentsMap[r.Register_No] = { reg: r.Register_No, name: r.Student_Name, courses: [] };
+                }
+                studentsMap[r.Register_No].courses.push(r);
+            });
+
+            const defaulters = [];
+            Object.values(studentsMap).forEach(s => {
+                const shortages = s.courses.filter(c => c.Attendance_Percentage < 75);
+                if (shortages.length > 0) {
+                    const avg = s.courses.reduce((a, b) => a + b.Attendance_Percentage, 0) / s.courses.length;
+                    defaulters.push({
+                        reg: s.reg,
+                        name: s.name,
+                        shortageCount: shortages.length,
+                        coursesStr: shortages.map(c => `${c.Course_Code} (${c.Attendance_Percentage}%)`).join('; '),
+                        avg: avg.toFixed(2)
+                    });
+                }
+            });
+
+            defaulters.sort((a, b) => b.shortageCount - a.shortageCount || a.avg - b.avg);
+
+            const tbody = document.getElementById('defaultersTableBody');
+            tbody.innerHTML = '';
+            defaulters.forEach((d, idx) => {
+                tbody.innerHTML += `
+                    <tr class="hover:bg-white/[0.02]">
+                        <td class="p-3 font-bold text-slate-400">${idx + 1}</td>
+                        <td class="p-3 font-mono text-cyan-400 text-xs">${d.reg}</td>
+                        <td class="p-3 font-semibold text-white">${d.name}</td>
+                        <td class="p-3">
+                            <span class="bg-rose-500/15 text-rose-400 font-bold px-2.5 py-1 rounded-full text-xs">
+                                ${d.shortageCount} subjects ⚠️
+                            </span>
+                        </td>
+                        <td class="p-3 text-xs text-slate-400 max-w-md">${d.coursesStr}</td>
+                        <td class="p-3 font-bold text-slate-200">${d.avg}%</td>
+                    </tr>
+                `;
+            });
+        }
+
+        // Calculator
+        function initCalculator() {
+            const students = [...new Map(rawData.map(r => [r.Register_No, r])).values()].sort((a,b) => a.Student_Name.localeCompare(b.Student_Name));
+            const select = document.getElementById('calcStudentSelect');
+            const repSelect = document.getElementById('reportStudentSelect');
+            select.innerHTML = '';
+            repSelect.innerHTML = '';
+
+            students.forEach(s => {
+                const opt1 = document.createElement('option');
+                opt1.value = s.Register_No;
+                opt1.innerText = `${s.Student_Name} (${s.Register_No})`;
+                select.appendChild(opt1);
+
+                const opt2 = document.createElement('option');
+                opt2.value = s.Register_No;
+                opt2.innerText = `${s.Student_Name} (${s.Register_No})`;
+                repSelect.appendChild(opt2);
+            });
+
+            onCalcStudentChange();
+        }
+
+        function onCalcStudentChange() {
+            const reg = document.getElementById('calcStudentSelect').value;
+            const courses = rawData.filter(r => r.Register_No === reg);
+            const subjSelect = document.getElementById('calcSubjectSelect');
+            subjSelect.innerHTML = '';
+
+            courses.forEach(c => {
+                const opt = document.createElement('option');
+                opt.value = c.Course_Code;
+                opt.innerText = `${c.Course_Code} - ${c.Course_Title} (${c.Attendance_Percentage}% | ${c.Status})`;
+                subjSelect.appendChild(opt);
+            });
+
+            runCalculator();
+        }
+
+        function runCalculator() {
+            const reg = document.getElementById('calcStudentSelect').value;
+            const code = document.getElementById('calcSubjectSelect').value;
+            const item = rawData.find(r => r.Register_No === reg && r.Course_Code === code);
+            if (!item) return;
+
+            document.getElementById('calcHeld').innerText = item.Total_Classes;
+            document.getElementById('calcAttended').innerText = item.Attended_Classes;
+            document.getElementById('calcPct').innerText = item.Attendance_Percentage + '%';
+            
+            const statusEl = document.getElementById('calcStatus');
+            statusEl.innerText = item.Status;
+            statusEl.className = 'text-xl font-bold mt-1 ' + (item.Status === 'Eligible' ? 'text-emerald-400' : 'text-rose-400');
+
+            const A = item.Attended_Classes;
+            const T = item.Total_Classes;
+            const box = document.getElementById('calcAlertBox');
+            const tbody = document.getElementById('calcSimTableBody');
+            tbody.innerHTML = '';
+
+            if (item.Attendance_Percentage >= 75) {
+                const missable = Math.floor((4*A - 3*T) / 3);
+                box.className = 'p-5 rounded-2xl mb-6 bg-emerald-500/15 border border-emerald-500/30 text-emerald-300';
+                box.innerHTML = `
+                    <h4 class="font-bold text-base flex items-center gap-2">🎉 Eligible! (Current: ${item.Attendance_Percentage}%)</h4>
+                    <p class="text-sm mt-1">You require <b>0 upcoming consecutive classes</b> to maintain eligibility.</p>
+                    ${missable > 0 ? `<p class="text-xs text-emerald-400/80 mt-2">💡 Margin of safety: You can afford to miss up to <b>${missable} class${missable > 1 ? 'es' : ''}</b> and still stay ≥ 75%.</p>` : ''}
+                `;
+            } else {
+                const req = Math.max(0, Math.ceil(3*T - 4*A));
+                const newAtt = A + req;
+                const newTot = T + req;
+                const newPct = ((newAtt / newTot) * 100).toFixed(2);
+
+                box.className = 'p-5 rounded-2xl mb-6 bg-rose-500/15 border border-rose-500/30 text-rose-300';
+                box.innerHTML = `
+                    <h4 class="font-bold text-base flex items-center gap-2">🚨 Attendance Shortage Alert</h4>
+                    <p class="text-sm mt-1">To reach <b>75.00% eligibility</b> in ${item.Course_Title}, you must attend:</p>
+                    <div class="text-2xl font-black text-rose-400 my-2">👉 ${req} upcoming consecutive classes</div>
+                    <p class="text-xs text-rose-300/80">Reaching this goal brings your record to ${newAtt}/${newTot} (${newPct}%).</p>
+                `;
+
+                const steps = Math.max(req + 3, 6);
+                for (let i = 1; i <= steps; i++) {
+                    const sAtt = A + i;
+                    const sTot = T + i;
+                    const sP = ((sAtt / sTot) * 100).toFixed(2);
+                    const isEl = sP >= 75;
+                    tbody.innerHTML += `
+                        <tr class="hover:bg-white/[0.02]">
+                            <td class="p-3 font-semibold text-slate-300">+${i} class${i > 1 ? 'es' : ''}</td>
+                            <td class="p-3 font-mono text-xs text-slate-400">${sAtt} / ${sTot}</td>
+                            <td class="p-3 font-bold ${isEl ? 'text-emerald-400' : 'text-rose-400'}">${sP}%</td>
+                            <td class="p-3 text-xs font-bold ${isEl ? 'text-emerald-400' : 'text-rose-400'}">${isEl ? '✅ Eligible' : '❌ Shortage'}</td>
+                        </tr>
+                    `;
+                }
+            }
+        }
+
+        // Student Report Card
+        function renderStudentReport() {
+            const reg = document.getElementById('reportStudentSelect').value;
+            if (!reg) return;
+            const courses = rawData.filter(r => r.Register_No === reg);
+            const avg = courses.reduce((a, b) => a + b.Attendance_Percentage, 0) / courses.length;
+            const shortages = courses.filter(c => c.Attendance_Percentage < 75).length;
+
+            document.getElementById('reportAvg').innerText = avg.toFixed(2) + '%';
+            const shortEl = document.getElementById('reportShortages');
+            shortEl.innerText = shortages + ' Subject' + (shortages === 1 ? '' : 's');
+            shortEl.className = 'text-2xl font-extrabold mt-1 ' + (shortages > 0 ? 'text-rose-400' : 'text-emerald-400');
+
+            const tbody = document.getElementById('reportTableBody');
+            tbody.innerHTML = '';
+            courses.forEach(c => {
+                tbody.innerHTML += `
+                    <tr class="hover:bg-white/[0.02]">
+                        <td class="p-3 font-mono text-xs text-cyan-400">${c.Course_Code}</td>
+                        <td class="p-3 font-semibold text-white">${c.Course_Title}</td>
+                        <td class="p-3 font-mono text-xs text-slate-400">${c.Attended_Classes} / ${c.Total_Classes}</td>
+                        <td class="p-3 font-bold text-slate-200">${c.Attendance_Percentage}%</td>
+                        <td class="p-3">
+                            <span class="text-xs font-bold px-3 py-1 rounded-full ${c.Status === 'Eligible' ? 'bg-emerald-500/15 text-emerald-400' : 'bg-rose-500/15 text-rose-400'}">
+                                ${c.Status}
+                            </span>
+                        </td>
+                    </tr>
+                `;
+            });
+        }
+
+        // Subject Rankings
+        function renderRankings() {
+            const coursesMap = {};
+            rawData.forEach(r => {
+                if (!coursesMap[r.Course_Code]) {
+                    coursesMap[r.Course_Code] = { code: r.Course_Code, title: r.Course_Title, pcts: [] };
+                }
+                coursesMap[r.Course_Code].pcts.push(r.Attendance_Percentage);
+            });
+
+            const rankings = Object.values(coursesMap).map(c => {
+                const avg = c.pcts.reduce((a, b) => a + b, 0) / c.pcts.length;
+                const shortages = c.pcts.filter(p => p < 75).length;
+                return {
+                    code: c.code,
+                    title: c.title,
+                    count: c.pcts.length,
+                    avg: avg.toFixed(2),
+                    shortages: shortages
+                };
+            });
+
+            rankings.sort((a, b) => a.avg - b.avg);
+
+            const tbody = document.getElementById('rankingsTableBody');
+            tbody.innerHTML = '';
+            rankings.forEach((r, idx) => {
+                tbody.innerHTML += `
+                    <tr class="hover:bg-white/[0.02]">
+                        <td class="p-3 font-bold text-slate-400">${idx + 1}</td>
+                        <td class="p-3 font-mono text-xs text-cyan-400">${r.code}</td>
+                        <td class="p-3 font-semibold text-white">${r.title}</td>
+                        <td class="p-3 text-slate-400">${r.count} students</td>
+                        <td class="p-3 font-bold ${parseFloat(r.avg) >= 75 ? 'text-emerald-400' : 'text-rose-400'}">${r.avg}%</td>
+                        <td class="p-3">
+                            <span class="bg-rose-500/15 text-rose-400 font-bold px-2 py-0.5 rounded text-xs">
+                                ${r.shortages} 🚨
+                            </span>
+                        </td>
+                    </tr>
+                `;
+            });
+        }
+
+        // Master Records
+        function renderMasterRecords(list) {
+            document.getElementById('recordsCountLabel').innerText = `Showing ${list.length} of 174 records`;
+            const tbody = document.getElementById('masterTableBody');
+            tbody.innerHTML = '';
+            list.forEach(r => {
+                tbody.innerHTML += `
+                    <tr class="hover:bg-white/[0.02]">
+                        <td class="p-3 text-xs text-slate-400">${r['S.No']}</td>
+                        <td class="p-3 font-mono text-xs text-cyan-400">${r.Register_No}</td>
+                        <td class="p-3 font-semibold text-white">${r.Student_Name}</td>
+                        <td class="p-3 font-mono text-xs text-slate-400">${r.Course_Code}</td>
+                        <td class="p-3 text-xs text-slate-300">${r.Course_Title}</td>
+                        <td class="p-3 font-mono text-xs text-slate-400">${r.Attended_Classes} / ${r.Total_Classes}</td>
+                        <td class="p-3 font-bold text-slate-200">${r.Attendance_Percentage}%</td>
+                        <td class="p-3">
+                            <span class="text-xs font-bold px-2.5 py-0.5 rounded-full ${r.Status === 'Eligible' ? 'bg-emerald-500/15 text-emerald-400' : 'bg-rose-500/15 text-rose-400'}">
+                                ${r.Status}
+                            </span>
+                        </td>
+                    </tr>
+                `;
+            });
+        }
+
+        function downloadCSV() {
+            let csv = "S.No,Register_No,Student_Name,Course_Code,Course_Title,Attended_Classes,Total_Classes,Attendance_Percentage,Status\n";
+            rawData.forEach(r => {
+                csv += `"${r['S.No']}","${r.Register_No}","${r.Student_Name}","${r.Course_Code}","${r.Course_Title}",${r.Attended_Classes},${r.Total_Classes},${r.Attendance_Percentage},"${r.Status}"\n`;
+            });
+            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement("a");
+            link.href = URL.createObjectURL(blob);
+            link.download = "MBA_3rd_Sem_Attendance.csv";
+            link.click();
+        }
+    </script>
+</body>
+</html>
